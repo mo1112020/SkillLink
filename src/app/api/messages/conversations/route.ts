@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import Message from '@/models/Message'
@@ -6,7 +6,7 @@ import User from '@/models/User'
 import { connectToDatabase } from '@/lib/mongodb'
 import mongoose from 'mongoose'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
     if (!session) {
@@ -15,6 +15,10 @@ export async function GET() {
         { status: 401 }
       )
     }
+
+    // Get userId from query parameters
+    const url = new URL(request.url)
+    const queryUserId = url.searchParams.get('userId')
 
     await connectToDatabase()
 
@@ -108,7 +112,6 @@ export async function GET() {
     ])
 
     // If there's a userId in query params, add it to conversations if not already present
-    const queryUserId = session.query?.userId
     if (queryUserId && !conversations.some(conv => conv._id.toString() === queryUserId)) {
       const user = await User.findById(queryUserId).select('_id name image email')
       if (user) {
@@ -123,9 +126,9 @@ export async function GET() {
 
     return NextResponse.json(conversations)
   } catch (error) {
-    console.error('Error in conversations route:', error)
+    console.error('Error fetching conversations:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Error fetching conversations' },
       { status: 500 }
     )
   }
