@@ -4,9 +4,23 @@ import { authOptions } from '@/lib/auth'
 import Post from '@/models/Post'
 import { connectToDatabase } from '@/lib/mongodb'
 import { Server } from 'socket.io'
+import mongoose from 'mongoose'
 
 declare global {
   var io: Server | undefined
+}
+
+interface PostDocument {
+  _id: mongoose.Types.ObjectId;
+  author: {
+    _id: mongoose.Types.ObjectId;
+  };
+  title: string;
+  description: string;
+  skill: mongoose.Types.ObjectId;
+  likes: mongoose.Types.ObjectId[];
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export async function DELETE(
@@ -26,7 +40,7 @@ export async function DELETE(
 
     const post = await Post.findById(params.id)
       .populate('author', '_id')
-      .lean()
+      .lean() as PostDocument | null
 
     if (!post) {
       return NextResponse.json(
@@ -49,15 +63,11 @@ export async function DELETE(
       global.io.emit('postDeleted', params.id)
     }
 
-    return NextResponse.json({ 
-      success: true,
-      message: 'Post deleted successfully',
-      postId: params.id
-    })
+    return NextResponse.json({ message: 'Post deleted successfully' })
   } catch (error) {
     console.error('Error deleting post:', error)
     return NextResponse.json(
-      { error: 'Failed to delete post' },
+      { error: 'Error deleting post' },
       { status: 500 }
     )
   }
@@ -76,12 +86,21 @@ export async function PUT(
       )
     }
 
+    const body = await request.json()
+    const { title, description, skill } = body
+
+    if (!title || !description || !skill) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      )
+    }
+
     await connectToDatabase()
 
-    const body = await request.json()
     const post = await Post.findById(params.id)
       .populate('author', '_id')
-      .lean()
+      .lean() as PostDocument | null
 
     if (!post) {
       return NextResponse.json(
@@ -99,11 +118,12 @@ export async function PUT(
 
     const updatedPost = await Post.findByIdAndUpdate(
       params.id,
-      { $set: body },
+      { title, description, skill },
       { new: true }
     )
-      .populate('author', 'name image')
-      .populate('skill', 'name')
+      .populate('author', '_id name image')
+      .populate('skill', '_id name')
+      .lean()
 
     // Emit socket event for real-time update
     if (global.io) {
@@ -114,7 +134,7 @@ export async function PUT(
   } catch (error) {
     console.error('Error updating post:', error)
     return NextResponse.json(
-      { error: 'Failed to update post' },
+      { error: 'Error updating post' },
       { status: 500 }
     )
   }
