@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { v2 as cloudinary } from 'cloudinary'
 
+if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+  throw new Error('Missing Cloudinary environment variables')
+}
+
 cloudinary.config({
-  cloud_name: 'dtgg0qwou',
-  api_key: '864138346948771',
-  api_secret: '6yZE0YC8k17V2zJWROE9wwgJB-Y'
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
 })
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<Response> {
   try {
     const formData = await request.formData()
     const file = formData.get('file') as File | null
@@ -24,7 +28,7 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(bytes)
 
     // Create a promise to handle the upload
-    return new Promise((resolve, reject) => {
+    return new Promise<Response>((resolve, reject) => {
       cloudinary.uploader.upload_stream(
         {
           folder: 'skillshare-platform',
