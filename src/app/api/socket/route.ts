@@ -1,8 +1,13 @@
-import { Server } from 'socket.io'
+import { Server, Socket } from 'socket.io'
 import { NextResponse } from 'next/server'
 
 declare global {
   var io: Server | undefined
+}
+
+// Extend the Socket type to include userId
+interface CustomSocket extends Socket {
+  userId?: string;
 }
 
 const connectedUsers = new Map<string, string>()
@@ -30,11 +35,11 @@ export async function GET() {
   // Start server if not already listening
   if (!io.httpServer?.listening) {
     try {
-      const port = parseInt(process.env.SOCKET_PORT || '3001')
+      const port = parseInt(process.env.PORT || process.env.SOCKET_PORT || '3001')
       io.listen(port)
       console.log(`Socket server listening on port ${port}`)
 
-      io.on('connection', (socket) => {
+      io.on('connection', (socket: CustomSocket) => {
         console.log('Client connected:', socket.id)
 
         socket.on('join', (userId: string) => {
